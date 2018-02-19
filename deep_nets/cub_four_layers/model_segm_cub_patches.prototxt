@@ -1,0 +1,415 @@
+name: "CaffeNet"
+
+layers {
+  name: "data"
+  type: DATA
+  top: "data"
+  data_param {
+    source: "/visionfs/users/ssafar/mmbm/data_build_scripts/CUB/train/images.lmdb"
+    backend: LMDB
+    batch_size: 64
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  include: { phase: TRAIN }
+}
+
+layers {
+  name: "mask"
+  type: DATA
+  top: "mask"
+  data_param {
+    source: "/visionfs/users/ssafar/mmbm/data_build_scripts/CUB/train/masks.lmdb"
+    backend: LMDB
+    batch_size: 64
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  include: { phase: TRAIN }
+}
+
+layers {
+  name: "edges"
+  type: DATA
+  top: "edges"
+  data_param {
+    source: "/visionfs/users/ssafar/mmbm/data_build_scripts/CUB/train/ucm.lmdb"
+    backend: LMDB
+    batch_size: 64
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  include: { phase: TRAIN }
+}
+
+
+layers {
+  name: "data"
+  type: DATA
+  top: "data"
+  data_param {
+    source: "/visionfs/users/ssafar/mmbm/data_build_scripts/CUB/test/images.lmdb"
+    backend: LMDB
+    batch_size: 2
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  include: { phase: TEST }
+}
+
+layers {
+  name: "mask"
+  type: DATA
+  top: "mask"
+  data_param {
+    source: "/visionfs/users/ssafar/mmbm/data_build_scripts/CUB/test/masks.lmdb"
+    backend: LMDB
+    batch_size: 2
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  include: { phase: TEST }
+}
+
+layers {
+  name: "edges"
+  type: DATA
+  top: "edges"
+  data_param {
+    source: "/visionfs/users/ssafar/mmbm/data_build_scripts/CUB/test/ucm.lmdb"
+    backend: LMDB
+    batch_size: 2
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  include: { phase: TEST }
+}
+
+layers {
+  name: "mask_slicer"
+  type: SLICE
+  bottom: "mask"
+  top: "mask_r128"
+  top: "mask_rest"
+  slice_param {
+    slice_dim: 1
+    slice_point: 1
+  }
+}
+
+layers { # this produces 64x64
+  name: "mask_r64"
+  type: POOLING
+  bottom: "mask_r128"
+  top: "mask_r64"
+  pooling_param {
+    pool: AVE
+    kernel_size: 2
+    stride: 2
+  }
+}
+
+layers { name: "mask_r32" type: POOLING bottom: "mask_r128" top: "mask_r32"
+       pooling_param { pool: AVE kernel_size: 4 stride: 4}}
+
+layers {
+  name: "conv1" # keeping name for params
+  type: CONVOLUTION
+  bottom: "data"
+  top: "conv1_conv_r64"
+  blobs_lr: 0
+  blobs_lr: 1
+  weight_decay: 1
+  weight_decay: 0
+  convolution_param {
+    num_output: 96
+    kernel_size: 11
+    stride: 2
+    pad: 5
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layers {
+  name: "relu1"
+  type: RELU
+  bottom: "conv1_conv_r64"
+  top: "conv1_conv_r64"
+}
+layers {
+  name: "conv1_pool_r32"
+  type: POOLING
+  bottom: "conv1_conv_r64"
+  top: "conv1_pool_r32"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
+  }
+}
+
+layers {
+  name: "conv1_norm"
+  type: LRN
+  bottom: "conv1_pool_r32"
+  top: "conv1_norm_r32"
+  lrn_param {
+    local_size: 5
+    alpha: 0.0001
+    beta: 0.75
+  }
+}
+
+# for the alternative feature path
+layers {
+  name: "conv1_norm_r64"
+  type: LRN
+  bottom: "conv1_conv_r64"
+  top: "conv1_norm_r64"
+  lrn_param {
+    local_size: 9 # use a bigger local size to emulate the pooling effects
+    alpha: 0.0001
+    beta: 0.75
+  }
+}
+
+layers {
+  name: "the_hidden"
+  type: INNER_PRODUCT
+  bottom: "conv1_norm_r32"
+  top: "hidden_inner"
+  blobs_lr: 1
+  blobs_lr: 2
+  inner_product_param {
+    num_output: 500
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+
+
+layers {
+  name: "hidden_relu"
+  type: RELU
+  bottom: "hidden_inner"
+  top: "hidden_relu"
+ }
+
+layers {
+  name: "the_hidden_dropout"
+    type: DROPOUT
+    bottom: "hidden_relu"
+    top: "hidden_relu"
+    dropout_param {
+    dropout_ratio: 0.5
+      }
+}
+
+
+layers {
+  name: "global_inner"
+  type: INNER_PRODUCT
+  bottom: "hidden_relu"
+  top: "global_inner_f32"
+  blobs_lr: 1
+  blobs_lr: 2
+  weight_decay: 1
+  weight_decay: 0
+  inner_product_param {
+    num_output: 1024 # 32x32
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layers {
+ name: "mask_flatten"
+ type: FLATTEN
+ bottom: "mask_r64"
+ top: "mask_f64"
+}
+
+layers {
+       name: "mask_flatten32" type: FLATTEN bottom: "mask_r32" top: "mask_f32"
+}
+
+layers {
+  name: "global_relu_f32"
+  type: RELU
+  bottom: "global_inner_f32"
+  top: "global_relu_f32"
+}
+
+layers {
+  name: "global_sigmoid"
+  type: SIGMOID
+  bottom: "global_inner_f32"
+  top: "global_sigm_f32"
+}
+
+layers {
+  name: "global_r32" type: RESHAPE  bottom: "global_relu_f32"
+  top: "global_r32"
+  reshape_param { num: 0  channels: -1 width: 32 height: 32   }
+}
+
+#   name: "interm_output_flattener"
+#   type: FLATTEN
+#   bottom: "output_"
+#   top: "output_flat"
+# }
+
+layers {
+  name: "global_loss"
+  type: EUCLIDEAN_LOSS
+  bottom: "global_sigm_f32"
+  bottom: "mask_f32"
+  top: "global_loss"
+}
+
+layers {
+  name: "s_mask_rest"
+  type: SILENCE
+  bottom: "mask_rest"
+}
+
+layers {
+  name: "s_edges"
+  type: SILENCE
+  bottom: "edges"
+}
+
+layers {
+  name: "global_r64"
+  type: UNPOOLING
+  bottom: "global_r32"
+  top: "global_r64"
+  unpooling_param { kernel_size: 2 }
+}
+
+layers {
+  name: "all_the_feats_with_out"
+  type: CONCAT
+  bottom: "global_r64"
+  bottom: "conv1_norm_r64"
+  top: "global_and_conv1_r64"
+}
+
+layers {
+  name: "patchfirst_conv_r64"
+  type: CONVOLUTION
+  bottom: "global_and_conv1_r64"
+  top: "patchfirst_conv_r64"
+  blobs_lr: 1
+  blobs_lr: 2
+  weight_decay: 1
+  weight_decay: 0
+  convolution_param {
+    num_output: 30
+    pad: 2
+    kernel_size: 5
+    group: 1
+    weight_filler {
+      # type: "gaussian"
+      # std: 0.01
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+      value: 1
+    }
+  }
+}
+
+layers {
+  name: "patchfirst_relu_r64"
+  type: RELU
+  bottom: "patchfirst_conv_r64"
+  top: "patchfirst_conv_r64"
+}
+
+# should we normalize? (yep we should.)
+
+layers {
+  name: "patchfirst_norm_r64"
+  type: LRN
+  bottom: "patchfirst_conv_r64"
+  top: "patchfirst_norm_r64"
+  lrn_param {
+    local_size: 5
+    alpha: 0.0001
+    beta: 0.75
+  }
+}
+
+layers {
+ name: "patchsecond_conv_r64"
+ type: CONVOLUTION
+  bottom: "patchfirst_norm_r64"
+  top: "patchsecond_conv_r64"
+  blobs_lr: 1
+  blobs_lr: 2
+  weight_decay: 1
+  weight_decay: 0
+  convolution_param {
+    num_output: 1
+    pad: 1
+    kernel_size: 3
+    group: 1
+    weight_filler {
+      # type: "gaussian"
+      # std: 0.01
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+      value: 1
+    }
+  }
+}
+
+
+layers {
+  name: "patchsecond_sigm_r64"
+  type: SIGMOID
+  bottom: "patchsecond_conv_r64"
+  top: "patchsecond_sigm_r64"
+}
+
+layers {
+  name: "patchsecond_sigm_f64"
+  type: FLATTEN
+  bottom: "patchsecond_sigm_r64"
+  top: "patchsecond_sigm_f64"
+}
+
+layers {
+  name: "final_loss"
+  type: EUCLIDEAN_LOSS
+  bottom: "patchsecond_sigm_f64"
+  bottom: "mask_f64"
+  top: "final_loss"
+  loss_weight: 1.0
+}

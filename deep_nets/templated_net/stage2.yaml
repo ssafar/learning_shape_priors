@@ -1,0 +1,19 @@
+stage_id: "stage2"
+
+# stuff for the prior layer
+prior_use_dropout: False
+
+prior_lr_main: 0
+prior_lr_bias: 0
+
+# patch match params
+
+pm_active: True
+pm_lr_main: 1
+pm_lr_bias: 2
+
+# GC
+gc_active: False
+
+gc_lr_main: 1
+gc_lr_bias: 2

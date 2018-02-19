@@ -1,0 +1,7 @@
+dataset: "WZH"
+prior_num_outputs: 1024
+prior_height: 32
+
+full_height: 64
+
+test_iter: 64

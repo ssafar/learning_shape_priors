@@ -1,0 +1,135 @@
+#      _       _
+#   __| | __ _| |_ __ _
+#  / _` |/ _` | __/ _` |
+# | (_| | (_| | || (_| |
+#  \__,_|\__,_|\__\__,_|
+
+
+layers {
+  name: "data"
+  type: DATA
+  top: "data"
+  data_param {
+    source: "/visionfs/ssafar_no_backup/mmbm/data_build_scripts/$!dataset!$/train/images.lmdb"
+    backend: LMDB
+    batch_size: 64
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  include: { phase: TRAIN }
+}
+
+layers {
+  name: "mask"
+  type: DATA
+  top: "mask_raw"
+  data_param {
+    source: "/visionfs/ssafar_no_backup/mmbm/data_build_scripts/$!dataset!$/train/masks.lmdb"
+    backend: LMDB
+    batch_size: 64
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  include: { phase: TRAIN }
+}
+
+layers {
+  name: "edges"
+  type: DATA
+  top: "edges"
+  data_param {
+    source: "/visionfs/ssafar_no_backup/mmbm/data_build_scripts/$!dataset!$/train/$!ucm_style!$.lmdb"
+    backend: LMDB
+    batch_size: 64
+  }
+  # transform_param {
+  #   scale: 0.00390625
+  # }
+  include: { phase: TRAIN }
+}
+
+layers {
+  name: "data"
+  type: DATA
+  top: "data"
+  data_param {
+    source: "/visionfs/ssafar_no_backup/mmbm/data_build_scripts/$!dataset!$/test/images.lmdb"
+    backend: LMDB
+    batch_size: 2
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  include: { phase: TEST }
+}
+
+layers {
+  name: "mask"
+  type: DATA
+  top: "mask_raw"
+  data_param {
+    source: "/visionfs/ssafar_no_backup/mmbm/data_build_scripts/$!dataset!$/test/masks.lmdb"
+    backend: LMDB
+    batch_size: 2
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  include: { phase: TEST }
+}
+
+layers {
+  name: "edges"
+  type: DATA
+  top: "edges"
+  data_param {
+    source: "/visionfs/ssafar_no_backup/mmbm/data_build_scripts/$!dataset!$/test/$!ucm_style!$.lmdb"
+    backend: LMDB
+    batch_size: 2
+  }
+  # transform_param {
+  #   scale: 0.00390625
+  # }
+  include: { phase: TEST }
+}
+
+layers {
+  type: THRESHOLD
+  bottom: "mask_raw"
+  top: "mask"
+  threshold_param { threshold: 0.5 }
+}
+
+layers {
+  name: "mask_slicer"
+  type: SLICE
+  bottom: "mask"
+  top: "mask_r128"
+  top: "mask_rest"
+  slice_param {
+    slice_dim: 1
+    slice_point: 1
+  }
+}
+
+layers { # this produces 64x64
+  name: "mask_r64"
+  type: POOLING
+  bottom: "mask_r128"
+  top: "mask_r64"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+
+layers { name: "mask_r32" type: POOLING bottom: "mask_r128" top: "mask_r32"
+       pooling_param { pool: AVE kernel_size: 4 stride: 4}}
+
+layers { name: "edges_r64" type: POOLING bottom: "edges" top: "edges_r64"
+       pooling_param { pool: MAX kernel_size: 2 stride: 2}}
+
+layers { type: SILENCE bottom: "edges_r64" bottom: "mask_rest"}

@@ -1,0 +1,216 @@
+name: "ToyStory"
+
+<!--(include)--> data_sources.prototxt.subtemplate <!--(end)-->
+
+# silence actual image data; who cares about that
+
+layers { type: SILENCE bottom: "data"}
+
+
+# pool GT so that it becomes super coarse
+layers { type: POOLING bottom: "mask_r32" top: "mask_r8"
+       pooling_param: { pool: AVE kernel_size: 4 stride: 4 }}
+
+layers {
+         type: UNPOOLING bottom: "mask_r8" top: "mask_noisy_r64"
+         unpooling_param { kernel_size: 8 }}
+
+layers {
+  name: "unary_conv"
+  type: CONVOLUTION
+  bottom: "mask_noisy_r64"
+  top: "unary_r64"
+  blobs_lr: 1 # $!gc_lr_main!$
+  blobs_lr: 1# $!gc_lr_bias!$
+  weight_decay: 1
+  weight_decay: 0
+  convolution_param {
+    num_output: 1
+    pad: 1 #$!gc_1st_pad!$
+    kernel_size: 3 #$!gc_1st_kernel_size!$
+    group: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layers { type: SILENCE bottom: "edges_r64" }
+
+layers {
+  name: "binary_conv"
+  type: CONVOLUTION
+   bottom: "edges_r64"
+  top: "binary_r64"
+  blobs_lr: 1 #$!gc_lr_main!$
+  blobs_lr: 1 #$!gc_lr_bias!$
+  weight_decay: 1
+  weight_decay: 0
+  convolution_param {
+    num_output: 2
+    pad: 0
+    kernel_size: 1
+    group: 1
+        weight_filler {
+        # type: "xavier"
+        #type: "gaussian"
+        #std: 0.01
+        type: "constant"
+        value: 0
+
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+# layers {
+#   type: EXP
+#   bottom: "binary_r64_noexp"
+#   top: "binary_r64"
+# }
+
+layers {
+  name: "good_cut"
+  type: GRAPH_CUT
+  bottom: "unary_r64"
+  bottom: "binary_r64"
+  top: "good_mask_r64"
+  top: "good_edges_r64"
+}
+
+layers { type: SILENCE bottom: "good_mask_r64" }
+
+layers {
+  name: "augment_shift"
+  type: POWER
+  power_param {
+    power: 1
+    scale: 2
+    shift: -1
+  }
+
+  bottom: "mask_r64"
+  top: "mask_fullrange_r64"
+}
+
+# the noise thing
+layers {
+  type: DUMMY_DATA
+  dummy_data_param {
+    num: 64
+    channels: 1
+    height: 64
+    width: 64
+    data_filler: {
+       type: "uniform"
+       min: -1
+       max: 1
+    }
+  }
+  top: "noise_r64"
+  include: { phase: TRAIN }
+}
+layers {
+  type: DUMMY_DATA
+  dummy_data_param {
+    num: 2
+    channels: 1
+    height: 64
+    width: 64
+    data_filler: {
+       type: "uniform"
+       min: -1
+       max: 1
+    }
+  }
+  top: "noise_r64"
+  include: { phase: TEST }
+}
+
+layers {
+  name: "margin_add"
+  type: ELTWISE
+  bottom: "unary_r64"
+  bottom: "mask_fullrange_r64"
+  bottom: "noise_r64"
+  top: "unary_augmented_r64"
+
+  eltwise_param {
+    operation: SUM
+    coeff: 1
+    coeff: -1
+    coeff: 1
+  }
+}
+
+layers {
+  type: MASK_TO_EDGES
+  bottom: "mask_r64"
+  top: "gt_edges_r64"
+}
+
+
+layers {
+  name: "margin_add_edges"
+  type: ELTWISE
+  bottom: "binary_r64"
+  bottom: "gt_edges_r64"
+
+  eltwise_param {
+    operation: SUM
+    coeff: 1
+    coeff: 0
+  }
+
+  top: "binary_augmented_r64"
+}
+
+layers {
+  name: "margin_cut"
+  type: GRAPH_CUT
+  bottom: "unary_augmented_r64"
+  bottom: "binary_augmented_r64"
+  top: "margin_mask_r64"
+  top: "margin_edges_r64"
+}
+
+layers {
+ type: EUCLIDEAN_LOSS
+ bottom: "good_edges_r64"
+ bottom: "gt_edges_r64"
+ top: "good_edge_loss"
+ loss_weight: 0.0
+}
+
+layers {
+ type: EUCLIDEAN_LOSS
+ bottom: "margin_edges_r64"
+ bottom: "gt_edges_r64"
+ top: "margin_edge_loss"
+ loss_weight: 1.0
+}
+
+layers {
+ type: EUCLIDEAN_LOSS
+ bottom: "margin_mask_r64"
+ bottom: "mask_r64"
+ top: "augmented_mask_loss"
+ loss_weight: 1.0
+}
+
+layers {
+ type: EUCLIDEAN_LOSS
+ bottom: "good_mask_r64"
+ bottom: "mask_r64"
+ top: "good_mask_loss"
+ loss_weight: 0
+}
+
+

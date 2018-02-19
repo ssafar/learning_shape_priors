@@ -1,0 +1,8 @@
+dataset: "PFP"
+prior_num_outputs: 2048
+prior_height: 64
+full_height: 128
+
+prior_num_hidden: 100
+
+test_iter: 223

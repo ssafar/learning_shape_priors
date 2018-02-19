@@ -1,0 +1,25 @@
+num_iter: 10000
+
+prior_num_hidden: 500
+
+pm_num_hidden: 30
+
+pm_1st_kernel_size: 5
+pm_1st_pad: 2
+
+pm_1st_lrn_size: 5
+
+pm_2nd_kernel_size: 3
+pm_2nd_pad: 1
+
+gc_1st_kernel_size: 1
+gc_1st_pad: 0
+
+snapshot_interval: 500
+base_lr: 0.0001
+
+lr_stepsize: 100000
+
+# is_main_net: True
+net_type: "main"
+ucm_style: "ucm"

@@ -1,0 +1,26 @@
+stage_id: "stage1"
+
+# stuff for the prior layer
+prior_use_dropout: True
+
+prior_lr_main: 1
+prior_lr_bias: 2
+
+# patch match params
+
+pm_active: False
+pm_lr_main: 1
+pm_lr_bias: 2
+
+# GC
+gc_active: False
+
+gc_lr_main: 1
+gc_lr_bias: 2
+
+initial_weights: "/home/ssafar/local/caffe/models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel"
+
+snapshot_interval: 500
+base_lr: 1e-2
+
+lr_stepsize: 3000

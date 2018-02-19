@@ -1,0 +1,7 @@
+<!--(if net_type == "main")-->
+        <!--(include)--> model.prototxt.template <!--(end)-->
+<!--(end)-->
+
+<!--(if net_type == "toy_story")-->
+        <!--(include)--> toy_story.prototxt.template <!--(end)-->
+<!--(end)-->

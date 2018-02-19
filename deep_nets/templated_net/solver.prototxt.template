@@ -1,0 +1,14 @@
+net: "model_$!dataset.lower()!$_$!stage_id!$.prototxt"
+test_iter: $!test_iter!$
+test_interval: 500
+base_lr: $!base_lr!$
+lr_policy: "step"
+gamma: 0.1
+stepsize: $!lr_stepsize!$
+display: 20
+max_iter: $!num_iter!$
+momentum: 0.9
+weight_decay: 0.0005
+snapshot: $!snapshot_interval!$
+snapshot_prefix: "sshot_$!dataset!$_$!stage_id!$"
+solver_mode: GPU

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#if [$# -ge 1 ] ; then
+# WEIGHTSFILE=$1
+# fi
+
+<!--(if stage_id=="stage1")-->
+WEIGHTSFILE="/home/ssafar/local/caffe/models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel"
+<!--(else)-->
+WEIGHTSFILE=$1
+<!--(end)-->
+
+~/local/caffe/build/tools/caffe -weights=$WEIGHTSFILE -solver=solver_$!dataset.lower()!$_$!stage_id!$.prototxt train

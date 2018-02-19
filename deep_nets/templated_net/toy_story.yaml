@@ -1,0 +1,11 @@
+net_type: "toy_story"
+stage_id: "toy_story"
+
+gc_lr_main: 1
+gc_lr_bias: 2
+
+snapshot_interval: 200
+base_lr: 1e-4
+num_iter: 800
+
+ucm_style: "ucm"
